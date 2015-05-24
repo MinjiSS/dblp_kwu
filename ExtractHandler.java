@@ -138,6 +138,7 @@ public class ExtractHandler extends DefaultHandler{
 			System.out.println("드라이버 검색 성공!!");	
 		}catch(ClassNotFoundException e){
 			System.out.println("드라이버 검색 실패!");
+			return;
 		}
 		
 		String url = "jdbc:mysql://dblp-db.cbrenledlob9.ap-northeast-1.rds.amazonaws.com";
@@ -170,6 +171,7 @@ public class ExtractHandler extends DefaultHandler{
 			//end of get one element's info so call the DB insert Funtion
 			// 여기서 tag 변수는 xml정보를 모두 담고 있으므로 가져다가 insert 하면 됨
 			
+			/*
 			int n;
 			
 			//etc 테이블부터 채워보자
@@ -274,7 +276,11 @@ public class ExtractHandler extends DefaultHandler{
 			}
 			catch(SQLException e){
 				e.printStackTrace();
-			}
+			}*/
+			
+			System.out.println("1." + tag.key + " 2." + tag.type + " 3." + tag.title + " 4." + tag.booktitle + " 5." + tag.year
+					 + " 6." + tag.journal + " 7." + tag.volume + " 8." + tag.month + " 9." + tag.note + " 10." + tag.series
+					 + " 11." + tag.url + " 12." + tag.ee + " 13." + tag.coauthor);
 			
 			
 			return;
