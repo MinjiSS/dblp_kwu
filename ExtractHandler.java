@@ -159,6 +159,7 @@ public class ExtractHandler extends DefaultHandler{
 		if(isElement(qname))
 		{
 			tag = new XmlElements();
+			tag.type = qname;
 			tag.key = attr.getValue("key");
 			return;
 		}
