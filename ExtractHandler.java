@@ -17,7 +17,7 @@ public class ExtractHandler extends DefaultHandler{
 	
 	Connection con = null;
 	
-	public ExtractHandler()
+	private void InitHs()
 	{
 		hs = new HashSet<>(); //init HashSet - has dblp element
 		hs.add("article");
@@ -28,22 +28,25 @@ public class ExtractHandler extends DefaultHandler{
 		hs.add("phdthesis");
 		hs.add("mastersthesis");
 		hs.add("www");
-		
+	}
+	
+	private void InitMap()
+	{
 		map = new HashMap<String, PutCharToXmlElements>();
 		
-		map.put("authors", new PutCharToXmlElements() {
+		map.put("author", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.authors.add(data);
 			};
 		});
 		
-		map.put("cites", new PutCharToXmlElements() {
+		map.put("cite", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.cites.add(data);
 			};
 		});
 		
-		map.put("editors", new PutCharToXmlElements() {
+		map.put("editor", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.editors.add(data);
 			};
@@ -121,22 +124,31 @@ public class ExtractHandler extends DefaultHandler{
 			};
 		});
 	}
-	
-	
-	public boolean isElement(String localName)
+		
+	public ExtractHandler()
+	{
+		InitHs();
+		InitMap();		
+	}
+		
+	public boolean isElement(String localName) //isHSElement
 	{
 		return hs.contains(localName);
 	}
 	
-	public void startDocument() {
+	public void startDocument() 
+	{
 		
 		System.out.println("XML 문서 시작.");
 		System.out.println("Database 접속 시작.");
 		
-		try{
+		try
+		{
 			Class.forName("org.gjt.mm.mysql.Driver");
 			System.out.println("드라이버 검색 성공!!");	
-		}catch(ClassNotFoundException e){
+		}
+		catch(ClassNotFoundException e)
+		{
 			System.out.println("드라이버 검색 실패!");
 			return;
 		}
@@ -144,10 +156,13 @@ public class ExtractHandler extends DefaultHandler{
 		String url = "jdbc:mysql://dblp-db.cbrenledlob9.ap-northeast-1.rds.amazonaws.com";
 		String user = "KW";
 		String pass = "dblp2015";
-		try{
+		try
+		{
 			con = DriverManager.getConnection(url,user,pass);
 			System.out.println("My-SQL 접속 성공!!");
-		}catch(SQLException e){
+		}
+		catch(SQLException e)
+		{
 			System.out.println("My-SQL 접속 실패");
 		}
 	}
@@ -279,9 +294,11 @@ public class ExtractHandler extends DefaultHandler{
 				e.printStackTrace();
 			}*/
 			
+			/*
 			System.out.println("1." + tag.key + " 2." + tag.type + " 3." + tag.title + " 4." + tag.booktitle + " 5." + tag.year
 					 + " 6." + tag.journal + " 7." + tag.volume + " 8." + tag.month + " 9." + tag.note + " 10." + tag.series
 					 + " 11." + tag.url + " 12." + tag.ee + " 13." + tag.coauthor);
+					 */
 			
 			
 			return;
@@ -289,6 +306,7 @@ public class ExtractHandler extends DefaultHandler{
 		try
 		{
 			map.get(qname).put(tag, data);
+			if(tag.)
 		}
 		catch(Exception ex)
 		{
