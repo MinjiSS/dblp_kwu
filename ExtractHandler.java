@@ -3,6 +3,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.sql.*;
 
+//import jdk.internal.org.xml.sax.SAXException;
+
 import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.Attributes;
 
@@ -29,36 +31,29 @@ public class ExtractHandler extends DefaultHandler{
 		
 		map = new HashMap<String, PutCharToXmlElements>();
 		
-		map.put("author", new PutCharToXmlElements() {
+		map.put("authors", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
-				if(data == null)
-					xe.authors.add("NULL");
 				xe.authors.add(data);
 			};
 		});
 		
-		map.put("cite", new PutCharToXmlElements() {
+		map.put("cites", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
-				if(data == null)
-					xe.authors.add("NULL");
 				xe.cites.add(data);
 			};
 		});
 		
-		map.put("editor", new PutCharToXmlElements() {
+		map.put("editors", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
-				if(data == null)
-					xe.authors.add("NULL");
 				xe.editors.add(data);
 			};
 		});
 		
-		/*
 		map.put("type", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.type = data;
 			};
-		});*/
+		});
 		
 		map.put("title", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
@@ -123,7 +118,6 @@ public class ExtractHandler extends DefaultHandler{
 		map.put("coauthor", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.coauthor = data;
-				
 			};
 		});
 	}
@@ -178,17 +172,14 @@ public class ExtractHandler extends DefaultHandler{
 			//end of get one element's info so call the DB insert Funtion
 			// 여기서 tag 변수는 xml정보를 모두 담고 있으므로 가져다가 insert 하면 됨
 			
-			
+			/*
 			int n;
 			
 			//etc 테이블부터 채워보자
 			PreparedStatement ps = null;
-			String sql = "insert into DBLP_DB.etc values (?,?,?,?,?,?,?,?,?,?,?,?,?)"; //쿼리문
+			String sql = "insert into DBLP_DB.etc values(?,?,?,?,?,?,?,?,?,?,?,?,?)"; //쿼리문
 			//key, type, title, booktitle, year, journal, volume, month, note, series, url, ee, coauthor
 			
-			if(tag.key == null)
-				return;
-				
 			try{
 				ps = con.prepareStatement(sql);
 				ps.setString(1,tag.key); //키값
@@ -205,28 +196,21 @@ public class ExtractHandler extends DefaultHandler{
 				ps.setString(12,tag.ee); //ee
 				ps.setString(13,tag.coauthor); //공동저자
 				
-				//쿼리문 출력, tag값 출력.
-				System.out.println(ps);
-				System.out.println("1." + tag.key + " 2." + tag.type + " 3." + tag.title + " 4." + tag.booktitle + " 5." + tag.year
-						 + " 6." + tag.journal + " 7." + tag.volume + " 8." + tag.month + " 9." + tag.note + " 10." + tag.series
-						 + " 11." + tag.url + " 12." + tag.ee + " 13." + tag.coauthor);
-						 
-				System.out.println();
-			/*	n = ps.executeUpdate(); //데이터 삽입
+				n = ps.executeUpdate(); //데이터 삽입
 				if(n<=0){
 					System.out.println("etc table 데이터추가 실패");
 					return;
-				}*/
+				}
 			}
 			catch(SQLException e){
 				e.printStackTrace();
 			}
 			
 			//author table 데이터 추가
-			/*
+			
 			int i;
 			ps = null; //초기화
-			sql = "insert into DBLP_DB.author(key, author) values(?,?)"; //쿼리문
+			sql = "insert into DBLP_DB.author values(?,?)"; //쿼리문
 			
 			try{
 				ps = con.prepareStatement(sql);
@@ -234,10 +218,6 @@ public class ExtractHandler extends DefaultHandler{
 				
 				for(i=0;i<tag.authors.size(); i++)
 				{//리스트에 있는만큼 저자들을 추가
-					
-					if(tag.authors.get(i) == null)
-						continue;
-					
 					ps.setString(2,tag.authors.get(i)); //type
 
 					n = ps.executeUpdate(); //데이터 삽입
@@ -254,7 +234,7 @@ public class ExtractHandler extends DefaultHandler{
 			
 			//cite 테이블
 			ps = null; //초기화
-			sql = "insert into DBLP_DB.cite(key, cite) values(?,?)"; //쿼리문
+			sql = "insert into DBLP_DB.cite values(?,?)"; //쿼리문
 			
 			try{
 				ps = con.prepareStatement(sql);
@@ -262,10 +242,6 @@ public class ExtractHandler extends DefaultHandler{
 				
 				for(i=0;i<tag.cites.size(); i++)
 				{//리스트에 있는만큼 인용정보를 추가
-					
-					if(tag.cites.get(i) == null)
-						continue;
-					
 					ps.setString(2,tag.cites.get(i)); //type
 
 					n = ps.executeUpdate(); //데이터 삽입
@@ -282,7 +258,7 @@ public class ExtractHandler extends DefaultHandler{
 			
 			//editor 테이블
 			ps = null; //초기화
-			sql = "insert into DBLP_DB.editor(key, editor) values(?,?)"; //쿼리문
+			sql = "insert into DBLP_DB.editor values(?,?)"; //쿼리문
 			
 			try{
 				ps = con.prepareStatement(sql);
@@ -290,11 +266,6 @@ public class ExtractHandler extends DefaultHandler{
 				
 				for(i=0;i<tag.editors.size(); i++)
 				{//리스트에 있는만큼 인용정보를 추가
-					
-					if(tag.editors.get(i) == null)
-						continue;
-					
-					
 					ps.setString(2,tag.editors.get(i)); //type
 
 					n = ps.executeUpdate(); //데이터 삽입
@@ -306,33 +277,11 @@ public class ExtractHandler extends DefaultHandler{
 			}
 			catch(SQLException e){
 				e.printStackTrace();
-			}
+			}*/
 			
-			/*
-			int i;
-			
-			System.out.println("editors print.");
-			
-			for(i=0;i<tag.editors.size(); i++)
-				System.out.print(tag.editors.get(i) + " ");
-			
-			System.out.println("authors print.");
-			
-			for(i=0;i<tag.authors.size(); i++)
-				System.out.print(tag.authors.get(i) + " ");
-			
-			System.out.println("cites print.");
-			for(i=0;i<tag.cites.size(); i++)
-				System.out.print(tag.cites.get(i) + " ");
-			
-			System.out.println();*/
-			
-			/*
 			System.out.println("1." + tag.key + " 2." + tag.type + " 3." + tag.title + " 4." + tag.booktitle + " 5." + tag.year
 					 + " 6." + tag.journal + " 7." + tag.volume + " 8." + tag.month + " 9." + tag.note + " 10." + tag.series
 					 + " 11." + tag.url + " 12." + tag.ee + " 13." + tag.coauthor);
-			*/
-			
 			
 			
 			return;
