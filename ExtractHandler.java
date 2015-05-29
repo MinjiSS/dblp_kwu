@@ -31,29 +31,29 @@ public class ExtractHandler extends DefaultHandler{
 		
 		map = new HashMap<String, PutCharToXmlElements>();
 		
-		map.put("authors", new PutCharToXmlElements() {
+		map.put("author", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.authors.add(data);
 			};
 		});
 		
-		map.put("cites", new PutCharToXmlElements() {
+		map.put("cite", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.cites.add(data);
 			};
 		});
 		
-		map.put("editors", new PutCharToXmlElements() {
+		map.put("editor", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.editors.add(data);
 			};
 		});
-		
+		/*
 		map.put("type", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
 				xe.type = data;
 			};
-		});
+		});*/
 		
 		map.put("title", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
@@ -63,7 +63,7 @@ public class ExtractHandler extends DefaultHandler{
 		
 		map.put("booktitle", new PutCharToXmlElements() {
 			public void put(XmlElements xe, String data) {
-				xe.title = data;
+				xe.booktitle = data;
 			};
 		});
 		
@@ -172,7 +172,7 @@ public class ExtractHandler extends DefaultHandler{
 			//end of get one element's info so call the DB insert Funtion
 			// 여기서 tag 변수는 xml정보를 모두 담고 있으므로 가져다가 insert 하면 됨
 			
-			/*
+			
 			int n;
 			
 			//etc 테이블부터 채워보자
@@ -196,18 +196,28 @@ public class ExtractHandler extends DefaultHandler{
 				ps.setString(12,tag.ee); //ee
 				ps.setString(13,tag.coauthor); //공동저자
 				
+				
+				//퀴리문과 현재 tag의 값 출력
+				System.out.println(ps);
+				System.out.println("1." + tag.key + " 2." + tag.type + " 3." + tag.title + " 4." + tag.booktitle + " 5." + tag.year
+						 + " 6." + tag.journal + " 7." + tag.volume + " 8." + tag.month + " 9." + tag.note + " 10." + tag.series
+						 + " 11." + tag.url + " 12." + tag.ee + " 13." + tag.coauthor);
+				
+				System.out.println();
+				
+				/*
 				n = ps.executeUpdate(); //데이터 삽입
 				if(n<=0){
 					System.out.println("etc table 데이터추가 실패");
 					return;
-				}
+				}*/
 			}
 			catch(SQLException e){
 				e.printStackTrace();
 			}
 			
 			//author table 데이터 추가
-			
+			/*
 			int i;
 			ps = null; //초기화
 			sql = "insert into DBLP_DB.author values(?,?)"; //쿼리문
