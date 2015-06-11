@@ -1,7 +1,6 @@
 import java.io.*;
 import javax.xml.parsers.*;
 import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
 
 public class Main{
 	public static void main(String[] args)

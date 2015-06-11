@@ -32,7 +32,7 @@ public class DBHandler {
 	
 	/*
 	 * GetServerAccountInto()
-	 * 아마존 서버뿐만이 아니라 다른 서버를 사용하고 싶을 때
+	 * 아마존 서버뿐만이 아니라 다른 mysql서버를 사용하고 싶을 때
 	 * 입력을 통해 새로운 서버에 접속할 수 있도록 해주는 input 함수
 	 * 단 다른 서버의 db, table의 이름도 아마존꺼랑 같아야함
 	 */
@@ -240,11 +240,16 @@ public class DBHandler {
 	 * public void UpdatekeywordCount(XmlElements tag)
 	 * tag 값을 인자로 받아와 journal or conference
 	 * 테이블에 word count를 update 해 주는 함수
-	 * 업데이트 시도 후 해당 컬럼이 없으면
-	 * insert 한다.
+	 * UpdateCountTable로 업데이트 시도 후 해당 컬럼이 없으면
+	 * UpdateCountTable내부에서
+	 * InsertCountTable를 호출하여 insert 한다.
 	 */
 	public void UpdateKeywordCount(XmlElements tag)
 	{
+		if(tag.url == null || "".compareTo(tag.url) == 0)
+			return;
+
+		
 		String[] slicedUrl = tag.url.split("/");
 		
 		if(slicedUrl[CONF_OR_JOURNAL].compareTo("journals") == 0) //이거 좀 노답
@@ -257,17 +262,18 @@ public class DBHandler {
 		UpdateCountTable(slicedUrl, keywordList);
 	}
 	
+	/*
+	 * void InsertCountTable(String[] slicedUrl, String insertKeyword)
+	 * 하는 일 : update를 시도했으나 해당 row가 없으면 insert
+	 */
 	public void InsertCountTable(String[] slicedUrl, String insertKeyword)
 	{
-		String insertQuery = "insert into dblp." + slicedUrl[CONF_OR_JOURNAL] + "keywordcount values(?,?,1)";
-		int n;
-		
 		try 
 		{
-			PreparedStatement ps1 = con.prepareStatement(insertQuery);
+			PreparedStatement ps1 = con.prepareStatement(GetCountInsertQuery(slicedUrl[CONF_OR_JOURNAL]));
 			ps1.setString(1, slicedUrl[CONF_OR_JOURNAL_NAME]);
 			ps1.setString(2, insertKeyword);
-			n = ps1.executeUpdate(); //데이터 삽입
+			int n = ps1.executeUpdate(); //데이터 삽입
 			
 			if(n<=0)
 			{
@@ -277,28 +283,25 @@ public class DBHandler {
 		} catch (SQLException e1) 
 		{
 			// TODO Auto-generated catch block
-			e1.printStackTrace();
+			//e1.printStackTrace();
 		}
 	}
 	
 	public void UpdateCountTable(String[] slicedUrl, ArrayList<String> keywordList)
-	{
-		int n = 0;
-	
-		String updateQuery = "update dblp." + slicedUrl[CONF_OR_JOURNAL] + "keywordcount set count = count + 1 where " + slicedUrl[CONF_OR_JOURNAL] +" = ? AND keyword = ?";
-		
+	{		
 		for(int i = 0; i < keywordList.size(); ++i)
 		{
 			try 
 			{
-				PreparedStatement ps = con.prepareStatement(updateQuery);
+				PreparedStatement ps = con.prepareStatement(GetCountUpdateQuery(slicedUrl[CONF_OR_JOURNAL]));
 				ps.setString(1, slicedUrl[CONF_OR_JOURNAL_NAME]);
 				ps.setString(2, keywordList.get(i));
-				n = ps.executeUpdate();
+				int n = ps.executeUpdate();
 				
 				if(n<=0)
 				{
-					System.out.println("keywordcounttable update fail");
+					//System.out.println("keywordcounttable update fail");
+					InsertCountTable(slicedUrl, keywordList.get(i));
 					return;
 				}
 			} 
@@ -306,7 +309,7 @@ public class DBHandler {
 			{
 				// TODO Auto-generated catch block
 				//여기서 insert 해줘야지
-				e.printStackTrace();
+				//e.printStackTrace();
 				InsertCountTable(slicedUrl, keywordList.get(i));
 			}
 		}
@@ -317,9 +320,38 @@ public class DBHandler {
 	{
 		//나중에 기능구현하지뭐 and what that 같은거 제거해줌
 	}
+	
 	public void TrimingKeyword(ArrayList<String> keywordList)
 	{
 		/*나중에 기능구현22 키워드에 "database" 같은걸 database 로 바꿔줌
 		  한마디로 키워드에 붙어있는 특수문자 제거함 */
+		for(int i = 0; i < keywordList.size(); ++i)
+		{
+			keywordList.set(i, keywordList.get(i).replaceAll("[^a-zA-Z0-9\\s]", ""));
+			//앞, 뒤, 문장 중간에 관계없이 알파벳만 남기고 다 없앰
+		}
+	}
+	
+	/*
+	 * Get~Query 함수들은 자바 String의 오버헤드를
+	 * StringBuffer를 이용하여 줄여보고 싶어서 만들어 보았지만
+	 * 그 성능은 검증하지 못하였다고 한다.
+	 */
+	public String GetCountUpdateQuery(String confOrJournal)
+	{
+		StringBuffer sb = new StringBuffer("update dblp.");
+		sb.append(confOrJournal);
+		sb.append("keywordcount set count = count + 1 where ");
+		sb.append(confOrJournal);
+		sb.append(" = ? AND keyword = ?");
+		return sb.toString();
+	}
+	
+	public String GetCountInsertQuery(String confOrJournal)
+	{
+		StringBuffer sb = new StringBuffer("insert into dblp.");
+		sb.append(confOrJournal);
+		sb.append("keywordcount values(?,?,1)");
+		return sb.toString();
 	}
 }
