@@ -1,5 +1,6 @@
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Scanner;
 
 import com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException;
@@ -12,7 +13,7 @@ public class DBHandler {
 	private String user = "KW";
 	private String pass = "dblp2015";
 	
-	private static final int CONF_OR_JUORNAL = 1;
+	private static final int CONF_OR_JOURNAL = 1;
 	private static final int CONF_OR_JOURNAL_NAME = 2;
 	
 	private static final int KEY = 1; // 
@@ -236,27 +237,89 @@ public class DBHandler {
 	}
 	
 	/*
-	 * public void UpdateWordCount(XmlElements tag)
+	 * public void UpdatekeywordCount(XmlElements tag)
 	 * tag 값을 인자로 받아와 journal or conference
 	 * 테이블에 word count를 update 해 주는 함수
 	 * 업데이트 시도 후 해당 컬럼이 없으면
 	 * insert 한다.
 	 */
-	public void UpdateWordCount(XmlElements tag)
+	public void UpdateKeywordCount(XmlElements tag)
 	{
-		/*
-		 * 1. split the url
-		 * 2. determine conf or journal
-		 * 3. try update
-		 * 4. if phase 3 is failed. insert 
-		 */
-		
 		String[] slicedUrl = tag.url.split("/");
-		UpdateCountTable(slicedUrl[CONF_OR_JUORNAL], tag.title);
+		
+		if(slicedUrl[CONF_OR_JOURNAL].compareTo("journals") == 0) //이거 좀 노답
+			slicedUrl[CONF_OR_JOURNAL] = "journal";
+		
+		ArrayList<String> keywordList = new ArrayList<String>(Arrays.asList(tag.title.split(" "))); //title 을 split 하되, 원활한 필터링을 위해 list로 만듬
+		FilteringKeyword(keywordList);
+		TrimingKeyword(keywordList);
+		
+		UpdateCountTable(slicedUrl, keywordList);
 	}
 	
-	public void UpdateCountTable(String targetTable, String title)
+	public void InsertCountTable(String[] slicedUrl, String insertKeyword)
 	{
-
+		String insertQuery = "insert into dblp." + slicedUrl[CONF_OR_JOURNAL] + "keywordcount values(?,?,1)";
+		int n;
+		
+		try 
+		{
+			PreparedStatement ps1 = con.prepareStatement(insertQuery);
+			ps1.setString(1, slicedUrl[CONF_OR_JOURNAL_NAME]);
+			ps1.setString(2, insertKeyword);
+			n = ps1.executeUpdate(); //데이터 삽입
+			
+			if(n<=0)
+			{
+				System.out.println("keywordcounttable insert fail");
+				return;
+			}
+		} catch (SQLException e1) 
+		{
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	}
+	
+	public void UpdateCountTable(String[] slicedUrl, ArrayList<String> keywordList)
+	{
+		int n = 0;
+	
+		String updateQuery = "update dblp." + slicedUrl[CONF_OR_JOURNAL] + "keywordcount set count = count + 1 where " + slicedUrl[CONF_OR_JOURNAL] +" = ? AND keyword = ?";
+		
+		for(int i = 0; i < keywordList.size(); ++i)
+		{
+			try 
+			{
+				PreparedStatement ps = con.prepareStatement(updateQuery);
+				ps.setString(1, slicedUrl[CONF_OR_JOURNAL_NAME]);
+				ps.setString(2, keywordList.get(i));
+				n = ps.executeUpdate();
+				
+				if(n<=0)
+				{
+					System.out.println("keywordcounttable update fail");
+					return;
+				}
+			} 
+			catch (SQLException e) 
+			{
+				// TODO Auto-generated catch block
+				//여기서 insert 해줘야지
+				e.printStackTrace();
+				InsertCountTable(slicedUrl, keywordList.get(i));
+			}
+		}
+		
+	}
+	
+	public void FilteringKeyword(ArrayList<String> keywordList)
+	{
+		//나중에 기능구현하지뭐 and what that 같은거 제거해줌
+	}
+	public void TrimingKeyword(ArrayList<String> keywordList)
+	{
+		/*나중에 기능구현22 키워드에 "database" 같은걸 database 로 바꿔줌
+		  한마디로 키워드에 붙어있는 특수문자 제거함 */
 	}
 }
