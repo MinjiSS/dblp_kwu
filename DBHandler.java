@@ -12,6 +12,9 @@ public class DBHandler {
 	private String user = "KW";
 	private String pass = "dblp2015";
 	
+	private static final int CONF_OR_JUORNAL = 1;
+	private static final int CONF_OR_JOURNAL_NAME = 2;
+	
 	private static final int KEY = 1; // 
 	private static final int TYPE = 2;
 	private static final int TITLE = 3;
@@ -232,5 +235,28 @@ public class DBHandler {
 
 	}
 	
+	/*
+	 * public void UpdateWordCount(XmlElements tag)
+	 * tag 값을 인자로 받아와 journal or conference
+	 * 테이블에 word count를 update 해 주는 함수
+	 * 업데이트 시도 후 해당 컬럼이 없으면
+	 * insert 한다.
+	 */
+	public void UpdateWordCount(XmlElements tag)
+	{
+		/*
+		 * 1. split the url
+		 * 2. determine conf or journal
+		 * 3. try update
+		 * 4. if phase 3 is failed. insert 
+		 */
+		
+		String[] slicedUrl = tag.url.split("/");
+		UpdateCountTable(slicedUrl[CONF_OR_JUORNAL], tag.title);
+	}
 	
+	public void UpdateCountTable(String targetTable, String title)
+	{
+
+	}
 }
