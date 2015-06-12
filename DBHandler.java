@@ -2,6 +2,8 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 import com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException;
 
@@ -51,6 +53,12 @@ public class DBHandler {
 			user = sc.nextLine();
 			System.out.print("input your user PASSWORD : ");
 			pass = sc.nextLine();
+		}
+		else if("qwer".compareTo(accountSelection) == 0)
+		{
+			url = "jdbc:mysql://127.0.0.1";
+			user = "opi";
+			pass = "2011726041";
 		}
 		
 		sc.close();
@@ -262,58 +270,27 @@ public class DBHandler {
 		UpdateCountTable(slicedUrl, keywordList);
 	}
 	
-	/*
-	 * void InsertCountTable(String[] slicedUrl, String insertKeyword)
-	 * 하는 일 : update를 시도했으나 해당 row가 없으면 insert
-	 */
-	public void InsertCountTable(String[] slicedUrl, String insertKeyword)
-	{
-		try 
-		{
-			PreparedStatement ps1 = con.prepareStatement(GetCountInsertQuery(slicedUrl[CONF_OR_JOURNAL]));
-			ps1.setString(1, slicedUrl[CONF_OR_JOURNAL_NAME]);
-			ps1.setString(2, insertKeyword);
-			int n = ps1.executeUpdate(); //데이터 삽입
-			
-			if(n<=0)
-			{
-				System.out.println("keywordcounttable insert fail");
-				return;
-			}
-		} catch (SQLException e1) 
-		{
-			// TODO Auto-generated catch block
-			//e1.printStackTrace();
-		}
-	}
-	
 	public void UpdateCountTable(String[] slicedUrl, ArrayList<String> keywordList)
-	{		
-		for(int i = 0; i < keywordList.size(); ++i)
+	{	
+		try
 		{
-			try 
+			PreparedStatement ps = con.prepareStatement(GetInsertOnDupQuery(slicedUrl[CONF_OR_JOURNAL]));
+			
+			con.setAutoCommit(false);
+			for(int i = 0; i < keywordList.size(); ++i)
 			{
-				PreparedStatement ps = con.prepareStatement(GetCountUpdateQuery(slicedUrl[CONF_OR_JOURNAL]));
 				ps.setString(1, slicedUrl[CONF_OR_JOURNAL_NAME]);
 				ps.setString(2, keywordList.get(i));
-				int n = ps.executeUpdate();
-				
-				if(n<=0)
-				{
-					//System.out.println("keywordcounttable update fail");
-					InsertCountTable(slicedUrl, keywordList.get(i));
-					return;
-				}
-			} 
-			catch (SQLException e) 
-			{
-				// TODO Auto-generated catch block
-				//여기서 insert 해줘야지
-				//e.printStackTrace();
-				InsertCountTable(slicedUrl, keywordList.get(i));
+				ps.addBatch();
 			}
+			int[] n = ps.executeBatch();
+			con.commit();
+			ps.close();
 		}
-		
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
 	}
 	
 	public void FilteringKeyword(ArrayList<String> keywordList)
@@ -329,29 +306,20 @@ public class DBHandler {
 		{
 			keywordList.set(i, keywordList.get(i).replaceAll("[^a-zA-Z0-9\\s]", ""));
 			//앞, 뒤, 문장 중간에 관계없이 알파벳만 남기고 다 없앰
+			//Triming 방식에 대해서는 재고의 여지가 있음.
 		}
 	}
 	
 	/*
-	 * Get~Query 함수들은 자바 String의 오버헤드를
+	 * Get~Query 함수는 자바 String 생성의 오버헤드를
 	 * StringBuffer를 이용하여 줄여보고 싶어서 만들어 보았지만
 	 * 그 성능은 검증하지 못하였다고 한다.
 	 */
-	public String GetCountUpdateQuery(String confOrJournal)
+public String GetInsertOnDupQuery(String confOrJournal)
 	{
-		StringBuffer sb = new StringBuffer("update dblp.");
+		StringBuffer sb = new StringBuffer("INSERT INTO dblp.");
 		sb.append(confOrJournal);
-		sb.append("keywordcount set count = count + 1 where ");
-		sb.append(confOrJournal);
-		sb.append(" = ? AND keyword = ?");
-		return sb.toString();
-	}
-	
-	public String GetCountInsertQuery(String confOrJournal)
-	{
-		StringBuffer sb = new StringBuffer("insert into dblp.");
-		sb.append(confOrJournal);
-		sb.append("keywordcount values(?,?,1)");
+		sb.append("keywordcount (journal, keyword, count) values(?,?,1) ON DUPLICATE KEY UPDATE count = count + 1");
 		return sb.toString();
 	}
 }
