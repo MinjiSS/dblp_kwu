@@ -248,15 +248,18 @@ public class DBHandler {
 	 * public void UpdatekeywordCount(XmlElements tag)
 	 * tag 값을 인자로 받아와 journal or conference
 	 * 테이블에 word count를 update 해 주는 함수
-	 * UpdateCountTable로 업데이트 시도 후 해당 컬럼이 없으면
-	 * UpdateCountTable내부에서
-	 * InsertCountTable를 호출하여 insert 한다.
 	 */
 	public void UpdateKeywordCount(XmlElements tag)
 	{
 		if(tag.url == null || "".compareTo(tag.url) == 0)
 			return;
-
+/*
+		System.out.println(isInteger("1"));
+		System.out.println(isInteger(""));
+		System.out.println(isInteger("1 "));
+		
+		String[] splittest = "a   b   c  1 2 3".split(" ");
+*/		
 		
 		String[] slicedUrl = tag.url.split("/");
 		
@@ -264,8 +267,8 @@ public class DBHandler {
 			slicedUrl[CONF_OR_JOURNAL] = "journal";
 		
 		ArrayList<String> keywordList = new ArrayList<String>(Arrays.asList(tag.title.split(" "))); //title 을 split 하되, 원활한 필터링을 위해 list로 만듬
-		FilteringKeyword(keywordList);
 		TrimingKeyword(keywordList);
+		FilteringKeyword(keywordList);
 		
 		UpdateCountTable(slicedUrl, keywordList);
 	}
@@ -296,6 +299,14 @@ public class DBHandler {
 	public void FilteringKeyword(ArrayList<String> keywordList)
 	{
 		//나중에 기능구현하지뭐 and what that 같은거 제거해줌
+		int i;
+	
+		for(i =0; i < keywordList.size(); ++i) 
+			if(isInteger(keywordList.get(i))) //숫자, null, length = 0 일때 지워버림
+				keywordList.remove(i);
+		
+		for(i =0; i < keywordList.size(); ++i)
+			keywordList.set(i, keywordList.get(i).toLowerCase());
 	}
 	
 	public void TrimingKeyword(ArrayList<String> keywordList)
@@ -315,11 +326,38 @@ public class DBHandler {
 	 * StringBuffer를 이용하여 줄여보고 싶어서 만들어 보았지만
 	 * 그 성능은 검증하지 못하였다고 한다.
 	 */
-public String GetInsertOnDupQuery(String confOrJournal)
+	public String GetInsertOnDupQuery(String confOrJournal)
 	{
 		StringBuffer sb = new StringBuffer("INSERT INTO dblp.");
 		sb.append(confOrJournal);
 		sb.append("keywordcount (journal, keyword, count) values(?,?,1) ON DUPLICATE KEY UPDATE count = count + 1");
 		return sb.toString();
+	}
+	
+	public static boolean isInteger(String str) {
+		if (str == null) {
+			return true;
+		}
+		if ("".compareTo(str) == 0) {
+			return true;
+		}
+		int length = str.length();
+		if (length == 0) {
+			return true;
+		}
+		int i = 0;
+		if (str.charAt(0) == '-') {
+			if (length == 1) {
+				return false;
+			}
+			i = 1;
+		}
+		for (; i < length; i++) {
+			char c = str.charAt(i);
+			if (c <= '/' || c >= ':') {
+				return false;
+			}
+		}
+		return true;
 	}
 }
