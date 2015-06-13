@@ -168,7 +168,9 @@ public class ExtractHandler extends DefaultHandler{
 			//end of get one element's info so call the DB insert Funtion
 			// 여기서 tag 변수는 xml정보를 모두 담고 있으므로 가져다가 insert 하면 됨
 			//dbh.InsertETC(tag);
-			dbh.UpdateKeywordCount(tag);
+			//dbh.UpdateKeywordCount(tag);
+			dbh.InsertCountInfo("journal");
+			dbh.DeleteTrashValueInDB("journal");
 			return;
 		}
 		try

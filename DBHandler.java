@@ -287,7 +287,7 @@ public class DBHandler {
 				ps.setString(2, keywordList.get(i));
 				ps.addBatch();
 			}
-			/*int[] n = */ps.executeBatch(); //오류검사 안한다면 리턴값 받을 필요x
+			ps.executeBatch(); //오류검사 안한다면 리턴값 받을 필요x
 			con.commit();
 			ps.close();
 		}
@@ -368,21 +368,58 @@ public class DBHandler {
 		
 		ResultSet rsToCI = null, rsToKWC = null;
 		
-		String strSQToCI = "SELECT * FROM countinfo WHERE confOrJour = ?"; // ? Table
-		String strSQToKWC = "SELECT count FROM " + whichTable + "keywordcount WHERE " + whichTable + " = ?"; // ? = eventName
+		String strSQToCI = "SELECT * FROM dblp.countinfo WHERE confOrJour = ?"; // ? Table
+		String strSQToKWC = "SELECT keyword, count FROM dblp." + whichTable + "keywordcount WHERE " + whichTable + " = ?"; // ? = eventName
+		String strDQ = "DELETE FROM dblp." + whichTable + "keywordcount WHERE " + whichTable + " = ? AND keyword = ?";
 		
+		double countSum;
+		String eventName;
+		String keyword;
+		
+		int keywordCount;
+		final double DELETE_THRESHOLD = 0.01;
 		try 
 		{
 			psSQToCI = con.prepareStatement(strSQToCI);
+			psSQToKWC = con.prepareStatement(strSQToKWC);
+			psDQ = con.prepareStatement(strDQ);
+			
+			psSQToCI.setString(1, whichTable);
 			rsToCI = psSQToCI.executeQuery();
-			while(rsToCI.next())
+			while(rsToCI.next()) // countinfo table의 모든 row에 대해서 반복
 			{
+				countSum = (double)rsToCI.getInt("countSum");
+				eventName = rsToCI.getString("eventName");
 				
+				
+				psSQToKWC.setString(1, eventName);
+				rsToKWC = psSQToKWC.executeQuery();
+				while(rsToKWC.next()) //해당 eventName의 모든 경우에 대해서 비율비교하고 삭제 반복
+				{
+					keywordCount = rsToKWC.getInt("count");
+					keyword = rsToKWC.getString("keyword");
+					if(keywordCount == 1 || (keywordCount / countSum) < DELETE_THRESHOLD)
+					{
+						//지울 녀석 추가요
+						psDQ.setString(1, eventName);
+						psDQ.setString(2, keyword);
+						psDQ.addBatch();
+					}
+				}
+				psDQ.executeBatch(); //추가된 삭제리스트 한번에 삭제
 			}
 		} 
 		catch (SQLException e) 
 		{		
 			e.printStackTrace();
+		}
+		finally
+		{
+			if(psDQ != null) try {psDQ.close();psDQ = null;} catch(SQLException ex){}
+			if(rsToKWC != null) try {rsToKWC.close();rsToKWC = null;} catch(SQLException ex){}
+			if(psSQToKWC != null) try {psSQToKWC.close();psSQToKWC = null;} catch(SQLException ex){}
+			if(rsToCI != null) try {rsToCI.close();rsToCI = null;} catch(SQLException ex){}
+			if(psSQToCI != null) try {psSQToCI.close();psSQToCI = null;} catch(SQLException ex){}
 		}
 	}
 	
@@ -391,7 +428,7 @@ public class DBHandler {
 		PreparedStatement psSQ = null, psIQ = null;
 		ResultSet rsSQ = null;
 		
-		String selectQuery = "SELECT " + whichTable + ", SUM(count) as sum FROM " + whichTable + "keywordcount GROUP BY count";
+		String selectQuery = "SELECT " + whichTable + ", SUM(count) as sum FROM dblp." + whichTable + "keywordcount GROUP BY " + whichTable;
 		String insertQuery = "INSERT INTO dblp.countinfo (confOrJour, eventName, countSum) values(?,?,?)";
 		try 
 		{
@@ -401,10 +438,16 @@ public class DBHandler {
 			psIQ = con.prepareStatement(insertQuery);
 			con.setAutoCommit(false);
 			
+			String dbg; //dbg
+			int dbgc; //dbg
+			
 			int i = 0;
-			final int batchSize = 100;
+			final int batchSize = 10;
 			while(rsSQ.next())
 			{				
+				dbg = rsSQ.getString(whichTable); //dbg
+				dbgc = rsSQ.getInt("sum"); //dbg
+				System.out.println(dbg + "  " + dbgc);
 				psIQ.setString(1, whichTable);
 				psIQ.setString(2, rsSQ.getString(whichTable));
 				psIQ.setInt(3, rsSQ.getInt("sum"));
@@ -416,9 +459,12 @@ public class DBHandler {
 					i = 0;
 				}
 			}
+			psIQ.executeBatch();
+			con.commit();
 		} 
 		catch (SQLException e) 
 		{
+			try { con.rollback(); } catch (SQLException e1) { e1.printStackTrace();}
 			e.printStackTrace();
 		}
 		finally
