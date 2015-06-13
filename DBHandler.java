@@ -2,8 +2,6 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
 
 import com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException;
 
@@ -99,7 +97,7 @@ public class DBHandler {
 	 * 다량의 XmlElements 들을 DB insert시
 	 * InsertETC 자체를 여러번 호출하는게 아니라 
 	 * XmlElements를 ArrayList의 형태로 전달하여
-	 * insert를 반복해주도록 오버로딩된 함수
+	 * insert를 반복해주도록 오버로딩된 함수s
 	 */
 	public void InsertETC(ArrayList<XmlElements> xeList)
 	{
@@ -277,7 +275,8 @@ public class DBHandler {
 	{	
 		try
 		{
-			PreparedStatement ps = con.prepareStatement(GetInsertOnDupQuery(slicedUrl[CONF_OR_JOURNAL]));
+			String insertOnDupQuery = "INSERT INTO dblp." + slicedUrl[CONF_OR_JOURNAL] + "keywordcount (journal, keyword, count) values(?,?,1) ON DUPLICATE KEY UPDATE count = count + 1";
+			PreparedStatement ps = con.prepareStatement(insertOnDupQuery);
 			
 			con.setAutoCommit(false);
 			for(int i = 0; i < keywordList.size(); ++i)
@@ -286,7 +285,7 @@ public class DBHandler {
 				ps.setString(2, keywordList.get(i));
 				ps.addBatch();
 			}
-			int[] n = ps.executeBatch();
+			/*int[] n = */ps.executeBatch(); //오류검사 안한다면 리턴값 받을 필요x
 			con.commit();
 			ps.close();
 		}
@@ -302,7 +301,7 @@ public class DBHandler {
 		int i;
 	
 		for(i =0; i < keywordList.size(); ++i) 
-			if(isInteger(keywordList.get(i))) //숫자, null, length = 0 일때 지워버림
+			if(isTrashValue(keywordList.get(i))) //숫자, null, length = 0 일때 지워버림
 				keywordList.remove(i);
 		
 		for(i =0; i < keywordList.size(); ++i)
@@ -321,20 +320,7 @@ public class DBHandler {
 		}
 	}
 	
-	/*
-	 * Get~Query 함수는 자바 String 생성의 오버헤드를
-	 * StringBuffer를 이용하여 줄여보고 싶어서 만들어 보았지만
-	 * 그 성능은 검증하지 못하였다고 한다.
-	 */
-	public String GetInsertOnDupQuery(String confOrJournal)
-	{
-		StringBuffer sb = new StringBuffer("INSERT INTO dblp.");
-		sb.append(confOrJournal);
-		sb.append("keywordcount (journal, keyword, count) values(?,?,1) ON DUPLICATE KEY UPDATE count = count + 1");
-		return sb.toString();
-	}
-	
-	public static boolean isInteger(String str) {
+	public static boolean isTrashValue(String str) {
 		if (str == null) {
 			return true;
 		}
@@ -359,5 +345,103 @@ public class DBHandler {
 			}
 		}
 		return true;
+	}
+	
+	/*
+	 * DB에 count value가 엄청 작아서 의미가 없는 애들을 지워보자.
+	 * 삭제 기준 count value / Sum(count value of one conference) < x
+	 * 전체 단어 수 중 비율이 x이하인 값들.
+	 */
+	public void DeleteTrashValueInDB(String whichTable)
+	{
+		/*
+		 * 1. Sum(count value of one conference)를 구한다.
+		 * 2. 각 word들에 대해서 count value 를 구하여 비율에 따라 삭제할 대상인지 판별한다.
+		 * 3. 지워
+		 * 4. 모든 conference and journal에 대해서 반복한다.
+		 */		
+		String selectDistinctQuery = "SELECT DISTINCT " + whichTable + "FROM " + whichTable + "keywordcount";
+		PreparedStatement psDQ;
+		ResultSet rsDQ;
+		
+		try 
+		{
+			psDQ = con.prepareStatement(selectDistinctQuery);
+			rsDQ = psDQ.executeQuery();
+			
+			
+		} 
+		catch (SQLException e) 
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
+	public void InsertCountInfo(String whichTable) //whichTable 은 conf or journal 일것
+	{
+		PreparedStatement psSQ, psIQ;
+		ResultSet rsSQ;
+		
+		String selectQuery = "SELECT " + whichTable + ", SUM(count) as sum FROM " + whichTable + "keywordcount GROUP BY count";
+		String insertQuery = "INSERT INTO dblp.countinfo (confOrJour, eventName, count) values(?,?,?)";
+		try 
+		{
+			psSQ = con.prepareStatement(selectQuery);
+			rsSQ = psSQ.executeQuery();
+			
+			psIQ = con.prepareStatement(insertQuery);
+			con.setAutoCommit(false);
+			
+			int i = 0;
+			final int batchSize = 100;
+			while(rsSQ.next())
+			{				
+				psIQ.setString(1, whichTable);
+				psIQ.setString(2, rsSQ.getString(whichTable));
+				psIQ.setInt(3, rsSQ.getInt("sum"));
+				psIQ.addBatch();
+				if (++i == batchSize)
+				{
+					psIQ.executeBatch();
+					con.commit();
+					i = 0;
+				}
+			}
+			/*int[] n = */ //오류검사 안한다면 리턴값 받을 필요x
+			
+		} 
+		catch (SQLException e) 
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
+	public int SumKeywordCount(String tableName)
+	{
+		//String sumQuery = "SELECT SUM(count) From " + tableName;
+		try 
+		{
+			PreparedStatement ps = con.prepareStatement("SELECT SUM(count) From " + tableName + "where conf =");
+			ResultSet result = ps.executeQuery();
+			result.next();
+		} 
+		catch (SQLException e) 
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return 0;
+	}
+	
+	/*
+	 * DB에 what that how 같은 애들 날려주는 함수를 만들어 보자
+	 */
+	public void DeleteUselessValueInDB()
+	{
+		
 	}
 }
