@@ -34,7 +34,7 @@ public class DBHandler {
 	 * GetServerAccountInto()
 	 * 아마존 서버뿐만이 아니라 다른 mysql서버를 사용하고 싶을 때
 	 * 입력을 통해 새로운 서버에 접속할 수 있도록 해주는 input 함수
-	 * 단 다른 서버의 db, table의 이름도 아마존꺼랑 같아야함
+	 * 단 다른 서버의 db, table의 이름도 아마존꺼랑 같아야함 관련 기능 동작함. 로컬디비 이용하려고 추가
 	 */
 	private void GetServerAccountInto()
 	{
@@ -246,18 +246,15 @@ public class DBHandler {
 	 * public void UpdatekeywordCount(XmlElements tag)
 	 * tag 값을 인자로 받아와 journal or conference
 	 * 테이블에 word count를 update 해 주는 함수
+	 * tag.url 에 conf 인지 journal인지 그곳의 이름은 무언지 정보가 있음.
+	 * slicedUrl[CONF_OR_JOURNAL] 가 conf 인지 journal인지의 정보
+	 * slicedUrl[CONF_OR_JOURNAL_NAME] 가 그곳의 이름 정보
+	 * 정보를 추출한 뒤 실질적인 update 부분은 UpdateCountTable를 호출하여 진행  
 	 */
 	public void UpdateKeywordCount(XmlElements tag)
 	{
 		if(tag.url == null || "".compareTo(tag.url) == 0)
 			return;
-/*
-		System.out.println(isInteger("1"));
-		System.out.println(isInteger(""));
-		System.out.println(isInteger("1 "));
-		
-		String[] splittest = "a   b   c  1 2 3".split(" ");
-*/		
 		
 		String[] slicedUrl = tag.url.split("/");
 		
@@ -271,6 +268,11 @@ public class DBHandler {
 		UpdateCountTable(slicedUrl, keywordList);
 	}
 	
+	/*
+	 * void UpdateCountTable(String[] slicedUrl, ArrayList<String> keywordList)
+	 * slicedUrl은 tag.url을 "/"로 split 한 값.
+	 * keywordList는 tag.title을 " "로 split 하여 전처리 한 값들의 리스트 전처리 완벽하지 않음
+	 */
 	public void UpdateCountTable(String[] slicedUrl, ArrayList<String> keywordList)
 	{	
 		try
@@ -350,9 +352,10 @@ public class DBHandler {
 	/*
 	 * DB에 count value가 엄청 작아서 의미가 없는 애들을 지워보자.
 	 * 삭제 기준 count value / Sum(count value of one conference) < x
-	 * 전체 단어 수 중 비율이 x이하인 값들.
+	 * 전체 단어 수 중 비율이 x이하인 값들을 지운다.
+	 * whichTable을 인자로 받아서 어느 테이블의 쓰레기 값을 지울 것인지 정할 수 있도록 한다.-> 위험부담을 덜기 위해
 	 */
-	public void DeleteTrashValueInDB(String whichTable)
+	public void DeleteTrashValueInDB(String whichTable) //whichTable 은 conf or journal 일것
 	{
 		/*
 		 * 1. Sum(count value of one conference)를 구한다.
@@ -360,32 +363,36 @@ public class DBHandler {
 		 * 3. 지워
 		 * 4. 모든 conference and journal에 대해서 반복한다.
 		 */		
-		String selectDistinctQuery = "SELECT DISTINCT " + whichTable + "FROM " + whichTable + "keywordcount";
-		PreparedStatement psDQ;
-		ResultSet rsDQ;
+		PreparedStatement psSQToCI = null, psSQToKWC = null; //psSQToCI = ps select query to countinfo, psSQToKWC = ps select query to keywordcount
+		PreparedStatement psDQ = null; // psDQ = ps Delete Query
+		
+		ResultSet rsToCI = null, rsToKWC = null;
+		
+		String strSQToCI = "SELECT * FROM countinfo WHERE confOrJour = ?"; // ? Table
+		String strSQToKWC = "SELECT count FROM " + whichTable + "keywordcount WHERE " + whichTable + " = ?"; // ? = eventName
 		
 		try 
 		{
-			psDQ = con.prepareStatement(selectDistinctQuery);
-			rsDQ = psDQ.executeQuery();
-			
-			
+			psSQToCI = con.prepareStatement(strSQToCI);
+			rsToCI = psSQToCI.executeQuery();
+			while(rsToCI.next())
+			{
+				
+			}
 		} 
 		catch (SQLException e) 
-		{
-			// TODO Auto-generated catch block
+		{		
 			e.printStackTrace();
 		}
-		
 	}
 	
 	public void InsertCountInfo(String whichTable) //whichTable 은 conf or journal 일것
 	{
-		PreparedStatement psSQ, psIQ;
-		ResultSet rsSQ;
+		PreparedStatement psSQ = null, psIQ = null;
+		ResultSet rsSQ = null;
 		
 		String selectQuery = "SELECT " + whichTable + ", SUM(count) as sum FROM " + whichTable + "keywordcount GROUP BY count";
-		String insertQuery = "INSERT INTO dblp.countinfo (confOrJour, eventName, count) values(?,?,?)";
+		String insertQuery = "INSERT INTO dblp.countinfo (confOrJour, eventName, countSum) values(?,?,?)";
 		try 
 		{
 			psSQ = con.prepareStatement(selectQuery);
@@ -409,15 +416,17 @@ public class DBHandler {
 					i = 0;
 				}
 			}
-			/*int[] n = */ //오류검사 안한다면 리턴값 받을 필요x
-			
 		} 
 		catch (SQLException e) 
 		{
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+		finally
+		{
+			if(psIQ != null) try {psIQ.close();psIQ = null;} catch(SQLException ex){}
+			if(rsSQ != null) try {rsSQ.close();rsSQ = null;} catch(SQLException ex){}
+			if(psSQ != null) try {psSQ.close();psSQ = null;} catch(SQLException ex){}
+		}
 	}
 	
 	public int SumKeywordCount(String tableName)
