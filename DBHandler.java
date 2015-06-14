@@ -1,6 +1,7 @@
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Scanner;
 
 import com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException;
@@ -357,12 +358,6 @@ public class DBHandler {
 	 */
 	public void DeleteTrashValueInDB(String whichTable) //whichTable 은 conf or journal 일것
 	{
-		/*
-		 * 1. Sum(count value of one conference)를 구한다.
-		 * 2. 각 word들에 대해서 count value 를 구하여 비율에 따라 삭제할 대상인지 판별한다.
-		 * 3. 지워
-		 * 4. 모든 conference and journal에 대해서 반복한다.
-		 */		
 		PreparedStatement psSQToCI = null, psSQToKWC = null; //psSQToCI = ps select query to countinfo, psSQToKWC = ps select query to keywordcount
 		PreparedStatement psDQ = null; // psDQ = ps Delete Query
 		
@@ -495,8 +490,47 @@ public class DBHandler {
 	/*
 	 * DB에 what that how 같은 애들 날려주는 함수를 만들어 보자
 	 */
-	public void DeleteUselessValueInDB()
+	public void DeleteUselessValueInDB(String whichTable)
 	{
+		ArrayList<String> al = new ArrayList<String>();
 		
+		al.add("in");
+		al.add("on");
+		al.add("the");
+		al.add("of");
+		al.add("a");
+		al.add("for");
+		al.add("by");
+		al.add("with");
+		al.add("to");
+		al.add("an");
+		al.add("and");
+		al.add("using");
+		al.add("problem");
+		al.add("systems");
+		
+		String deleteQuery = "DELETE FROM dblp." + whichTable + "keywordcount WHERE keyword = ?";
+		PreparedStatement ps = null;
+		try 
+		{
+			ps = con.prepareStatement(deleteQuery);
+			con.setAutoCommit(false);
+			for(int i = 0; i < al.size(); ++i)
+			{
+				ps.setString(1, al.get(i));
+				ps.addBatch();
+			}
+			ps.executeBatch();
+			con.commit();
+		} 
+		catch (SQLException e) 
+		{
+			if(con != null) try { con.rollback(); } catch (SQLException ex) {}
+			e.printStackTrace();
+		}
+		finally 
+		{
+			if(ps != null) try { ps.close(); } catch(SQLException ex) {}
+		}
 	}
 }
