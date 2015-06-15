@@ -75,9 +75,7 @@ public class DBHandler {
 		{
 			Class.forName("org.gjt.mm.mysql.Driver");
 			System.out.println("드라이버 검색 성공!!");	
-		}
-		catch(ClassNotFoundException e)
-		{
+		} catch(ClassNotFoundException e) {
 			System.out.println("드라이버 검색 실패!");
 			return;
 		}
@@ -86,9 +84,7 @@ public class DBHandler {
 		{
 			con = DriverManager.getConnection(url,user,pass);
 			System.out.println("My-SQL 접속 성공!!");
-		}
-		catch(SQLException e)
-		{
+		} catch(SQLException e) {
 			System.out.println("My-SQL 접속 실패");
 		}
 	}
@@ -373,8 +369,7 @@ public class DBHandler {
 		
 		int keywordCount;
 		final double DELETE_THRESHOLD = 0.01;
-		try 
-		{
+		try {
 			psSQToCI = con.prepareStatement(strSQToCI);
 			psSQToKWC = con.prepareStatement(strSQToKWC);
 			psDQ = con.prepareStatement(strDQ);
@@ -403,13 +398,9 @@ public class DBHandler {
 				}
 				psDQ.executeBatch(); //추가된 삭제리스트 한번에 삭제
 			}
-		} 
-		catch (SQLException e) 
-		{		
+		} catch (SQLException e) {		
 			e.printStackTrace();
-		}
-		finally
-		{
+		} finally {
 			if(psDQ != null) try {psDQ.close();psDQ = null;} catch(SQLException ex){}
 			if(rsToKWC != null) try {rsToKWC.close();rsToKWC = null;} catch(SQLException ex){}
 			if(psSQToKWC != null) try {psSQToKWC.close();psSQToKWC = null;} catch(SQLException ex){}
@@ -425,8 +416,7 @@ public class DBHandler {
 		
 		String selectQuery = "SELECT " + whichTable + ", SUM(count) as sum FROM dblp." + whichTable + "keywordcount GROUP BY " + whichTable;
 		String insertQuery = "INSERT INTO dblp.countinfo (confOrJour, eventName, countSum) values(?,?,?)";
-		try 
-		{
+		try {
 			psSQ = con.prepareStatement(selectQuery);
 			rsSQ = psSQ.executeQuery();
 			
@@ -456,14 +446,10 @@ public class DBHandler {
 			}
 			psIQ.executeBatch();
 			con.commit();
-		} 
-		catch (SQLException e) 
-		{
+		} catch (SQLException e) {
 			try { con.rollback(); } catch (SQLException e1) { e1.printStackTrace();}
 			e.printStackTrace();
-		}
-		finally
-		{
+		} finally {
 			if(psIQ != null) try {psIQ.close();psIQ = null;} catch(SQLException ex){}
 			if(rsSQ != null) try {rsSQ.close();rsSQ = null;} catch(SQLException ex){}
 			if(psSQ != null) try {psSQ.close();psSQ = null;} catch(SQLException ex){}
@@ -473,27 +459,25 @@ public class DBHandler {
 	public int SumKeywordCount(String tableName)
 	{
 		//String sumQuery = "SELECT SUM(count) From " + tableName;
-		try 
-		{
+		try {
 			PreparedStatement ps = con.prepareStatement("SELECT SUM(count) From " + tableName + "where conf =");
 			ResultSet result = ps.executeQuery();
 			result.next();
-		} 
-		catch (SQLException e) 
-		{
+		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return 0;
 	}
 	
+
 	/*
 	 * DB에 what that how 같은 애들 날려주는 함수를 만들어 보자
 	 */
 	public void DeleteUselessValueInDB(String whichTable)
 	{
 		ArrayList<String> al = new ArrayList<String>();
-		
+
 		al.add("in");
 		al.add("on");
 		al.add("the");
@@ -508,11 +492,11 @@ public class DBHandler {
 		al.add("using");
 		al.add("problem");
 		al.add("systems");
+		al.add("from");
 		
 		String deleteQuery = "DELETE FROM dblp." + whichTable + "keywordcount WHERE keyword = ?";
 		PreparedStatement ps = null;
-		try 
-		{
+		try {
 			ps = con.prepareStatement(deleteQuery);
 			con.setAutoCommit(false);
 			for(int i = 0; i < al.size(); ++i)
@@ -522,15 +506,79 @@ public class DBHandler {
 			}
 			ps.executeBatch();
 			con.commit();
-		} 
-		catch (SQLException e) 
-		{
+		} catch (SQLException e) {
 			if(con != null) try { con.rollback(); } catch (SQLException ex) {}
 			e.printStackTrace();
-		}
-		finally 
-		{
+		} finally {
 			if(ps != null) try { ps.close(); } catch(SQLException ex) {}
 		}
 	}
+	
+	/*
+	 * 로컬에 저장되어 있는 정보를 아마존 서버로 옮긴다.
+	 * 근데 몽땅 옮기면 시간 개많이 걸릴 것 같음.
+	 * 그래서 count 가 threshold 이하인 키워드 들은 옮기지 않을란다.
+	 */
+	public void MigrationDB(String whichTable, int threshold)
+	{
+		final String awsUrl = "jdbc:mysql://dblp-db.cbrenledlob9.ap-northeast-1.rds.amazonaws.com/DBLP_DB";;
+		final String awsUser = "KW";
+		final String awsPass = "dblp2015";
+		
+		if(url.compareTo(awsUrl) == 0) // 일단 로컬디비로 접속해 있어야 하므로 이경우는 리턴함.
+			return;
+		
+		Connection awsCon = null;
+		
+		PreparedStatement localPs = null;
+		PreparedStatement awsPs = null;
+		ResultSet localRs = null;
+		
+		try {
+			awsCon = DriverManager.getConnection(awsUrl, awsUser, awsPass);
+			System.out.println("AWS My-SQL 접속 성공!!");
+		} catch(SQLException e) {
+			System.out.println("AWS My-SQL 접속 실패");
+		}
+		
+		String localSelectQuery = "SELECT * FROM dblp." + whichTable + "keywordcount WHERE count > " + String.valueOf(threshold);
+		String awsInsertQuery = "INSERT INTO " + whichTable + "keywordcount (" + whichTable + ", keyword, count) values(?,?,?)";
+		try {
+			localPs = con.prepareStatement(localSelectQuery);
+			localRs = localPs.executeQuery();
+			
+			awsPs = awsCon.prepareStatement(awsInsertQuery);
+			
+			final int batchCount = 100;
+			int i = 0;
+			
+			awsCon.setAutoCommit(false);
+			while(localRs.next()) 
+			{
+				awsPs.setString(1, localRs.getString(whichTable));
+				awsPs.setString(2, localRs.getString("keyword"));
+				awsPs.setInt(3, localRs.getInt("count"));
+				awsPs.addBatch();
+				
+				
+				if(++i % batchCount == 0)
+				{
+					awsPs.executeBatch();
+					awsCon.commit();
+					i = 0;
+				}
+			}
+			awsPs.executeBatch();
+			awsCon.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if(awsPs != null) try { awsPs.close(); } catch(SQLException ex) {}
+			if(localRs != null) try { localRs.close(); } catch(SQLException ex) {}
+			if(localPs != null) try { localPs.close(); } catch(SQLException ex) {}
+			if(awsCon != null) try { awsCon.close(); } catch(SQLException ex) {}
+		}
+		
+	}
+	
 }

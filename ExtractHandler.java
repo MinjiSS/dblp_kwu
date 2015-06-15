@@ -170,8 +170,12 @@ public class ExtractHandler extends DefaultHandler{
 			//dbh.InsertETC(tag);
 			//dbh.UpdateKeywordCount(tag);
 			//dbh.InsertCountInfo("journal");
+			//dbh.InsertCountInfo("conf");		
+			//dbh.DeleteUselessValueInDB("journal");
 			//dbh.DeleteTrashValueInDB("journal");
-			dbh.DeleteUselessValueInDB("journal");
+			//dbh.DeleteUselessValueInDB("conf");
+			//dbh.DeleteTrashValueInDB("conf");
+			dbh.MigrationDB("journal", 2);
 			return;
 		}
 		try
